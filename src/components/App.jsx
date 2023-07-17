@@ -1,89 +1,105 @@
-import React, { useState } from 'react';
-import { v4 as uuid } from 'uuid';
-import PropTypes from 'prop-types';
-import ContactForm from './contactForm/ContactForm';
-import ContactList from './contactList/ContactList';
-import Filter from './filter/Filter';
+import { Component } from "react";
+import { nanoid } from "nanoid";
+import { Notify } from 'notiflix';
 
-const App = () => {
-  const state = {
-    contacts: [
-      { id: 'id-1', name: 'Rosie Simpson', number: '459-12-56' },
-      { id: 'id-2', name: 'Hermione Kline', number: '443-89-12' },
-      { id: 'id-3', name: 'Eden Clements', number: '645-17-79' },
-      { id: 'id-4', name: 'Annie Copeland', number: '227-91-26' },
-    ],
+import styles from './App.module.css'
+import { ContactForm } from "./ContactForm";
+import { Filter } from "./Filter";
+import { ContactList } from "./ContactList";
+
+const INITIAL_CONTACTS = [
+  { id: nanoid(), name: 'Rosie Simpson', number: '459-12-56' },
+  { id: nanoid(), name: 'Rosie Sompson', number: '145-23-65' },
+  { id: nanoid(), name: 'Hermione Kline', number: '443-89-12' },
+  { id: nanoid(), name: 'Eden Clements', number: '645-17-79' },
+  { id: nanoid(), name: 'Annie Copeland', number: '227-91-26' },
+  { id: nanoid(), name: 'Jack Shepart', number: '345-53-81' },
+]
+
+export class App extends Component {
+  state = {
+    contacts: [...INITIAL_CONTACTS],
     filter: '',
-    numberFilter: '',
-  };
+  }
 
-  const [contacts, setContacts] = useState(state.contacts);
-  const [filter, setFilter] = useState(state.filter);
-  const [numberFilter, setNumberFilter] = useState(state.numberFilter);
-
-  const addContact = (name, number) => {
-    if (contacts.some(contact => contact.name === name)) {
-      alert(`${name} is already in contacts.`);
+  addContact = (newContact) => {
+    const { contacts } = this.state;
+    const newContactName = newContact.name.toLocaleLowerCase();
+    const isNewContactExist = contacts.some(({ name }) =>
+      name.toLocaleLowerCase() === newContactName);
+    
+    if (isNewContactExist) {
+      Notify.failure(`${newContact.name} is already in contacts.🧐`)
       return;
     }
 
-    const newContact = {
-      id: uuid(),
-      name,
-      number,
-    };
+    this.setState(({ contacts }) => ({
+      contacts: [...contacts, newContact],
+    }));
+  }
 
-    setContacts([...contacts, newContact]);
+  removeContact = (id) => {
+    const { contacts } = this.state;
+    const updatedContacts = contacts.filter((contact) =>
+      contact.id !== id);
+
+    this.setState(({ contacts }) => ({
+      contacts: [...updatedContacts],
+    }));
+
+    this.checkEmptyContacts(updatedContacts.length, 'remove');
+  }
+
+  checkEmptyContacts = (contactsCount, typeOperation) => {
+    if (contactsCount === 0) {
+      Notify.info(typeOperation === 'remove'
+        ? 'You deleted all contacts🙄'
+        : 'No contacts with this name');
+    }
+  }
+
+  setFilter = (value) => {
+    this.setState({ filter: value });
   };
 
-  const deleteContact = contactId => {
-    setContacts(contacts.filter(contact => contact.id !== contactId));
-  };
+  filterContacts = () => {
+    const { contacts } = this.state;
+    const filter = this.state.filter.toLocaleLowerCase();
+    if (filter) {
+      const filteredContacts = contacts.filter(({ name }) => name.toLocaleLowerCase().includes(filter));
 
-  const handleFilterChange = e => {
-    setFilter(e.target.value);
-  };
+      this.checkEmptyContacts(filteredContacts.length, 'filter');
+      return filteredContacts;
+    }
 
-  const handleNumberFilterChange = e => {
-    setNumberFilter(e.target.value);
-  };
+    return contacts;
+  }
+  
+  render() {
+    const { filter } = this.state;
+    const filteredContacts = this.filterContacts();
 
-  const filteredContacts = contacts.filter(contact => {
-    const nameMatch = contact.name.toLowerCase().includes(filter.toLowerCase());
-    const numberMatch = contact.number.includes(numberFilter);
-    return nameMatch && numberMatch;
-  });
+    return (
+      <div className="container">
+        <div className={styles.phonebook}>
+          <h1 className={styles.title}>Phonebook</h1>
+          <ContactForm
+            addContact={this.addContact} />
+        </div>
 
-  return (
-    <div>
-      <h1>Phonebook</h1>
-      <ContactForm addContact={addContact} />
-      <h2>Contacts</h2>
-      <Filter
-        filter={filter}
-        number={numberFilter}
-        onChange={handleFilterChange}
-        onNumberChange={handleNumberFilterChange}
-      />
-      <ContactList contacts={filteredContacts} onDelete={deleteContact} />
-    </div>
-  );
-};
+        <div>
+          <h2 className={styles.title}>Contacts</h2>
+          <Filter
+            filter={filter}
+            setFilter={this.setFilter} />
+          <ContactList
+            contacts={filteredContacts}
+            removeContact={this.removeContact} />
+        </div>
+      </div>
+    )
+  }
+}
 
-App.propTypes = {
-  contacts: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.string.isRequired,
-      name: PropTypes.string.isRequired,
-      number: PropTypes.string.isRequired,
-    })
-  ).isRequired,
-  filter: PropTypes.string.isRequired,
-  numberFilter: PropTypes.string.isRequired,
-  addContact: PropTypes.func.isRequired,
-  deleteContact: PropTypes.func.isRequired,
-  handleFilterChange: PropTypes.func.isRequired,
-  handleNumberFilterChange: PropTypes.func.isRequired,
-};
 
-export default App;
+
